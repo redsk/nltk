@@ -118,7 +118,7 @@ class Boxer(object):
         """
         return self.interpret_multi_sents([[input] for input in inputs], discourse_ids, question, verbose)
 
-    def interpret_multi_sents(self, inputs, discourse_ids=None, question=False, verbose=False):
+    def interpret_multi_sents(self, inputs, discourse_ids=None, question=False, verbose=False, get_pos_tags_and_drs=False):
         """
         Use Boxer to give a first order representation.
 
@@ -141,7 +141,9 @@ class Boxer(object):
 #        if 'ERROR: input file contains no ccg/2 terms.' in boxer_out:
 #            raise UnparseableInputException('Could not parse with candc: "%s"' % input_str)
 
-        drs_dict = self._parse_to_drs_dict(boxer_out, use_disc_id)
+        drs_dict, tags_list, parsed_list = self._parse_to_drs_dict(boxer_out, use_disc_id)
+        if get_pos_tags_and_drs:
+            return [drs_dict.get(id, None) for id in discourse_ids], tags_list, parsed_list
         return [drs_dict.get(id, None) for id in discourse_ids]
 
     def _call_candc(self, inputs, discourse_ids, question, verbose=False):
@@ -228,6 +230,8 @@ class Boxer(object):
     def _parse_to_drs_dict(self, boxer_out, use_disc_id):
         lines = boxer_out.split('\n')
         drs_dict = {}
+        tags_list = []
+        parsed_list = []
         i = 0
         while i < len(lines):
             line = lines[i]
@@ -261,11 +265,15 @@ class Boxer(object):
                             break
                 assert drs_start > -1
 
+                tags = line[:drs_start]
+                tags_list.append(tags)
                 drs_input = line[drs_start:-2].strip()
                 parsed = self._parse_drs(drs_input, discourse_id, use_disc_id)
+                parsed_list.append(parsed)
                 drs_dict[discourse_id] = self._boxer_drs_interpreter.interpret(parsed)
+
             i += 1
-        return drs_dict
+        return drs_dict, tags_list, parsed_list
 
     def _parse_drs(self, drs_string, discourse_id, use_disc_id):
         return BoxerOutputDrsParser([None,discourse_id][use_disc_id]).parse(drs_string)
