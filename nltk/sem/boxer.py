@@ -74,6 +74,7 @@ class Boxer(object):
 
     def set_bin_dir(self, bin_dir, verbose=False):
         self._candc_bin = self._find_binary('candc', bin_dir, verbose)
+        self._candc_soap_client_bin = self._find_binary('soap_client', bin_dir, verbose)
         self._candc_models_path = os.path.normpath(os.path.join(self._candc_bin[:-5], '../models'))
         self._boxer_bin = self._find_binary('boxer', bin_dir, verbose)
 
@@ -135,7 +136,8 @@ class Boxer(object):
             discourse_ids = list(map(str, range(len(inputs))))
             use_disc_id = False
 
-        candc_out = self._call_candc(inputs, discourse_ids, question, verbose=verbose)
+        #candc_out = self._call_candc(inputs, discourse_ids, question, verbose=verbose)
+        candc_out = self._call_candc_soap_client(inputs, discourse_ids, question, verbose=verbose)
         boxer_out = self._call_boxer(candc_out, verbose=verbose)
 
 #        if 'ERROR: input file contains no ccg/2 terms.' in boxer_out:
@@ -145,6 +147,19 @@ class Boxer(object):
         if get_pos_tags_and_drs:
             return [drs_dict.get(id, None) for id in discourse_ids], tags_list, parsed_list
         return [drs_dict.get(id, None) for id in discourse_ids]
+
+    def _call_candc_soap_client(self, inputs, discourse_ids, question, verbose=False):
+        """
+        Call the ``candc`` binary with the given input.
+
+        :param inputs: list of list of str Input discourses to parse
+        :param discourse_ids: list of str Identifiers to be inserted to each occurrence-indexed predicate.
+        :param filename: str A filename for the output file
+        :return: stdout
+        """
+        args = ["--url", "127.0.0.1:9004"]
+        return self._call('\n'.join(sum((["<META>'%s'" % id] + d for d,id in zip(inputs,discourse_ids)), [])), self._candc_soap_client_bin, args, verbose)
+
 
     def _call_candc(self, inputs, discourse_ids, question, verbose=False):
         """
